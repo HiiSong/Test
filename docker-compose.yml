@@ -1,0 +1,62 @@
+version: "3"
+
+services:
+  mongoDB:
+    image: mongo:4.4-bionic
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodbdata:/data/db
+    networks:
+      - backend
+
+  elas-backend:
+    image: elas-backend
+    build:
+      context: ./backend
+      dockerfile: dev.Dockerfile
+    restart: unless-stopped
+    environment:
+      - FLASK_APP=application
+      - FLASK_ENV=development
+      - MONGO_URI=mongodb://mongoDB:27017/ELAS
+      - JWT_SECRET_KEY=secret
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/:/app/
+    depends_on:
+      - mongoDB
+    networks:
+      - backend
+      - frontend
+
+  elas-frontend:
+    image: elas-frontend
+    build:
+      context: ./frontend
+      dockerfile: dev.Dockerfile
+    restart: unless-stopped
+    stdin_open: true
+    environment:
+      - REACT_APP_BASE_URL=http://localhost:5000
+      - CHOKIDAR_USEPOLLING=true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src:ro
+      - ./frontend/public:/app/public:ro
+    depends_on:
+      - elas-backend
+    networks:
+      - frontend
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+volumes:
+  mongodbdata:
+    driver: local
